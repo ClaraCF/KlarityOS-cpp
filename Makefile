@@ -5,7 +5,14 @@
 # Set some variables
 CC := x86_64-elf-gcc
 LD := x86_64-elf-ld
+ASM := nasm
 
+# Compilation flags
+CFLAGS := -ffreestanding -Wall -pedantic -O2
+LDFLAGS := -s
+
+# Include directories
+INCLUDE := src/intf
 
 # Gather all source files and objects
 kernel_source_files := $(shell find src/impl/kernel -name *.c)
@@ -24,24 +31,24 @@ x86_64_object_files := $(x86_64_c_object_files) $(x86_64_asm_object_files)
 # Build the kernel objects
 $(kernel_object_files): build/kernel/%.o : src/impl/kernel/%.c
 	mkdir -p $(dir $@)
-	$(CC) -c -I src/intf -ffreestanding $(patsubst build/kernel/%.o,src/impl/kernel/%.c,$@) -o $@
+	$(CC) $(CFLAGS) -I $(INCLUDE) -c $(patsubst build/kernel/%.o,src/impl/kernel/%.c,$@) -o $@
 
 # Build the C objects
 $(x86_64_c_object_files): build/x86_64/%.o : src/impl/x86_64/%.c
 	mkdir -p $(dir $@)
-	$(CC) -c -I src/intf -ffreestanding $(patsubst build/x86_64/%.o,src/impl/x86_64/%.c,$@) -o $@
+	$(CC) $(CFLAGS) -I $(INCLUDE) -c $(patsubst build/x86_64/%.o,src/impl/x86_64/%.c,$@) -o $@
 
 # Build the ASM objects
 $(x86_64_asm_object_files): build/x86_64/%.o : src/impl/x86_64/%.S
 	mkdir -p $(dir $@)
-	nasm -f elf64 $(patsubst build/x86_64/%.o,src/impl/x86_64/%.S,$@) -o $@
+	$(ASM) -f elf64 $(patsubst build/x86_64/%.o,src/impl/x86_64/%.S,$@) -o $@
 
 
 # Build the 64-bit system
 .PHONY: build-x86_64
 build-x86_64: $(kernel_object_files) $(x86_64_object_files)
 	mkdir -p dist/x86_64
-	$(LD) -n -o dist/x86_64/kernel.bin -T targets/x86_64/linker.ld $(kernel_object_files) $(x86_64_object_files)
+	$(LD) $(LDFLAGS) -n -o dist/x86_64/kernel.bin -T targets/x86_64/linker.ld $(kernel_object_files) $(x86_64_object_files)
 	cp dist/x86_64/kernel.bin targets/x86_64/iso/boot/kernel.bin
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso targets/x86_64/iso
 
